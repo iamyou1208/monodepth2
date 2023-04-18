@@ -1,7 +1,12 @@
 __pycache__
 *.pyc
-*_disp.jpg
-*_disp.npy
 *.npz
 kitti_data
 models
+splits/*/*.txt
+log/
+tmp/
+assets/*.jpeg
+assets/*.jpg
+assets/*.png
+assets/*.npy

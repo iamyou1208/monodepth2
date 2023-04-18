@@ -18,10 +18,13 @@ def disp_to_depth(disp, min_depth, max_depth):
     The formula for this conversion is given in the 'additional considerations'
     section of the paper.
     """
+    max_depth = max_depth/255
+    min_depth = min_depth/255
     min_disp = 1 / max_depth
     max_disp = 1 / min_depth
     scaled_disp = min_disp + (max_disp - min_disp) * disp
     depth = 1 / scaled_disp
+    # print(f"{disp.min()=}, {disp.max()=}, {depth.max()=}, {depth.min()=}")
     return scaled_disp, depth
 
 

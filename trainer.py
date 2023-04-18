@@ -112,7 +112,8 @@ class Trainer:
 
         # data
         datasets_dict = {"kitti": datasets.KITTIRAWDataset,
-                         "kitti_odom": datasets.KITTIOdomDataset}
+                         "kitti_odom": datasets.KITTIOdomDataset,
+                         "carla": datasets.CARLADataset}
         self.dataset = datasets_dict[self.opt.dataset]
 
         fpath = os.path.join(os.path.dirname(__file__), "splits", self.opt.split, "{}_files.txt")
@@ -322,10 +323,12 @@ class Trainer:
         """
         self.set_eval()
         try:
-            inputs = self.val_iter.next()
+            # inputs = self.val_iter.next()
+            inputs = next(self.val_iter)
         except StopIteration:
             self.val_iter = iter(self.val_loader)
-            inputs = self.val_iter.next()
+            # inputs = self.val_iter.next()
+            inputs = next(self.val_iter)
 
         with torch.no_grad():
             outputs, losses = self.process_batch(inputs)
@@ -628,3 +631,80 @@ class Trainer:
             self.model_optimizer.load_state_dict(optimizer_dict)
         else:
             print("Cannot find Adam weights so Adam is randomly initialized")
+
+class Trainer_Carla(Trainer):
+    def __init__(self, options):
+        super().__init__(options)
+
+    def compute_depth_losses(self, inputs, outputs, losses):
+        """Compute depth metrics, to allow monitoring during training
+
+        This isn't particularly accurate as it averages over the entire batch,
+        so is only used to give an indication of validation performance
+        """
+        depth_pred = outputs[("depth", 0, 0)]
+        depth_pred = F.interpolate(
+            depth_pred, [480, 640], mode="bilinear", align_corners=False)
+        depth_pred = depth_pred.detach()
+
+        depth_gt = inputs["depth_gt"]
+        mask = depth_gt > 0
+
+        # garg/eigen crop
+        crop_mask = torch.zeros_like(mask)
+        # crop_mask[:, :, 153:371, 44:1197] = 1
+        crop_mask[:, :, :, :] = 1
+        mask = mask * crop_mask
+
+        depth_gt = depth_gt[mask]
+        depth_pred = depth_pred[mask]
+        depth_pred *= torch.median(depth_gt) / torch.median(depth_pred)
+
+        # depth_pred = torch.clamp(depth_pred, min=1e-3, max=80)
+
+        depth_errors = compute_depth_errors(depth_gt, depth_pred)
+
+        for i, metric in enumerate(self.depth_metric_names):
+            losses[metric] = np.array(depth_errors[i].cpu())
+
+    def compute_losses(self, inputs, outputs):
+        """Compute the reprojection and smoothness losses for a minibatch
+        """
+        losses = {}
+
+        depth_gt = inputs["depth_gt"]
+        depth_pred = outputs[("depth", 0, 0)]
+        depth_errors = compute_depth_errors(depth_gt, depth_pred)
+        losses["loss"] = depth_errors[2] # rmse
+        return losses
+
+    def log(self, mode, inputs, outputs, losses):
+        """Write an event to the tensorboard events file
+        """
+        writer = self.writers[mode]
+        for l, v in losses.items():
+            writer.add_scalar("{}".format(l), v, self.step)
+
+        depth_gt = inputs["depth_gt"]
+        depth_pred = outputs[("depth", 0, 0)]
+
+        # for j in range(min(4, self.opt.batch_size)):  # write a maxmimum of four images
+        for j in range(min(4, self.opt.batch_size)):  # write a maxmimum of four images
+            s = 0
+            frame_id = 0
+            writer.add_image(
+                "color_{}_{}/{}".format(frame_id, s, j),
+                inputs[("color", frame_id, s)][j].data, self.step)
+            # if s == 0 and frame_id != 0:
+            #     writer.add_image(
+            #         "color_pred_{}_{}/{}".format(frame_id, s, j),
+            #         outputs[("color", frame_id, s)][j].data, self.step)
+
+            writer.add_image(
+                "disp_{}/{}".format(s, j),
+                normalize_image(outputs[("disp", s)][j]), self.step)
+            writer.add_image("depth_pred/{}".format(j), normalize_image(depth_pred[j]), self.step)
+            writer.add_image("depth_gt/{}".format(j), normalize_image(depth_gt[j]), self.step)
+        # if mode=="val":
+            # print(f"{depth_pred[0].min() = }")
+

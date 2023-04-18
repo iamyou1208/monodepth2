@@ -6,7 +6,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-from trainer import Trainer
+from trainer import Trainer, Trainer_Carla
 from options import MonodepthOptions
 
 options = MonodepthOptions()
@@ -14,5 +14,9 @@ opts = options.parse()
 
 
 if __name__ == "__main__":
-    trainer = Trainer(opts)
+    print(opts)
+    if opts.dataset == "carla":
+        trainer = Trainer_Carla(opts)
+    else:
+        trainer = Trainer(opts)
     trainer.train()

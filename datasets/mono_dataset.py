@@ -11,6 +11,7 @@ import random
 import numpy as np
 import copy
 from PIL import Image  # using pillow-simd for increased speed
+import time
 
 import torch
 import torch.utils.data as data
@@ -46,7 +47,8 @@ class MonoDataset(data.Dataset):
                  frame_idxs,
                  num_scales,
                  is_train=False,
-                 img_ext='.jpg'):
+                 img_ext='.jpg',
+                 ):
         super(MonoDataset, self).__init__()
 
         self.data_path = data_path
@@ -100,12 +102,18 @@ class MonoDataset(data.Dataset):
                 n, im, i = k
                 for i in range(self.num_scales):
                     inputs[(n, im, i)] = self.resize[i](inputs[(n, im, i - 1)])
+        # print(len(inputs))
 
         for k in list(inputs):
             f = inputs[k]
             if "color" in k:
                 n, im, i = k
                 inputs[(n, im, i)] = self.to_tensor(f)
+                # print("f", f)
+                # print("# color_aug", color_aug)
+                # print("## type(color_aug)", type(color_aug))
+                # print("### color_aug(f)", (color_aug(f)))
+                # time.sleep(1)
                 inputs[(n + "_aug", im, i)] = self.to_tensor(color_aug(f))
 
     def __len__(self):
@@ -160,6 +168,9 @@ class MonoDataset(data.Dataset):
             else:
                 inputs[("color", i, -1)] = self.get_color(folder, frame_index + i, side, do_flip)
 
+        if self.check_depth():
+            inputs["depth_gt"] = self.get_depth(folder, frame_index, side, do_flip)
+
         # adjusting intrinsics to match each scale in the pyramid
         for scale in range(self.num_scales):
             K = self.K.copy()
@@ -173,11 +184,18 @@ class MonoDataset(data.Dataset):
             inputs[("inv_K", scale)] = torch.from_numpy(inv_K)
 
         if do_color_aug:
-            color_aug = transforms.ColorJitter.get_params(
-                self.brightness, self.contrast, self.saturation, self.hue)
+            # color_aug = transforms.ColorJitter.get_params(
+            #     self.brightness, self.contrast, self.saturation, self.hue)
+            # # param = transforms.ColorJitter.get_params(
+            # #     self.brightness, self.contrast, self.saturation, self.hue)
+            # # print(param)
+            # # print(param[1], param[2], param[3], param[4])
+            # # color_aug = transforms.ColorJitter(param[1], param[2], param[3], param[4])
+            color_aug = (lambda x: x)
         else:
             color_aug = (lambda x: x)
 
+        # print(color_aug)
         self.preprocess(inputs, color_aug)
 
         for i in self.frame_idxs:
