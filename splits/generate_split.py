@@ -6,12 +6,12 @@ parser = argparse.ArgumentParser(description='description')
 parser.add_argument("val", type=int, choices=[1, 2, 3, 4, 5])
 args = parser.parse_args()
 
-train_less = True
+train_less = False
 
 home_dir = os.path.expanduser("~")
 file_path = os.path.dirname(os.path.abspath(__file__))
 split_carla_dir = os.path.join(file_path, "carla_1k")
-carla_dataset_dir = os.path.join(home_dir, "dataset", "carla_dataset_1k_less")
+carla_dataset_dir = os.path.join(home_dir, "dataset", "depth", "carla_dataset_1k")
 
 towns = ["Town01", "Town02", "Town03", "Town04", "Town05"]
 num_towns = len(towns)
@@ -36,47 +36,49 @@ else:
 
 split = None
 
-split = lambda x: x[-14:-4]
+split = lambda x: x[-26:-16]
 train_files = ""
 for train_town in train_towns:
-    town_path = os.path.join(carla_dataset_dir, "leftImg8bit", train_town) 
+    town_path = os.path.join(carla_dataset_dir, "leftImg8bit", "train", train_town) 
     colors = glob.glob(town_path + "/*.png")
     # print(colors[0]) # ../carla_dataset/leftImg8bit/Town03/Town03_10639_leftImg8bit.png
+    # print(town_path)
 
+    # print(colors[0][-26:-16]) # %10d
     common = list(map(split, colors))
     # print(common[0]) # Town03/Town03_10639
-    cnt = 0
+    # cnt = 0
     for item in common:
         num = int(item)
         if num == 0 or num == len(common)-1:
             pass
-        elif train_less and cnt==int(len(common)/5):
-            break
+        # elif train_less and cnt==int(len(common)/5):
+        #     break
         else:
             train_files += train_town + " " + str(num) + " l" + "\n"
-            cnt += 1
+            # cnt += 1
 
 # print(train_files)
 with open(split_carla_dir+"/train_files.txt", mode="w") as f:
     f.write(train_files)
 
 val_files = ""
-town_path = os.path.join(carla_dataset_dir, "leftImg8bit", val_town) 
+town_path = os.path.join(carla_dataset_dir, "leftImg8bit", "train", val_town) 
 # print(town_path)
 colors = glob.glob(town_path + "/*.png")
 # print(colors[0]) # ../carla_dataset/leftImg8bit/Town03/Town03_10639_leftImg8bit.png
 common = list(map(split, colors))
 # print(common[0]) # Town03/Town03_10639
-cnt = 0
+# cnt = 0
 for item in common:
     num = int(item)
     if num == 0 or num == len(common)-1:
         pass
-    elif train_less and cnt==int(len(common)/5):
-        break
+    # elif train_less and cnt==int(len(common)/5):
+    #     break
     else:
         val_files += val_town + " " + str(num) + " l" + "\n"
-        cnt += 1
+        # cnt += 1
 
     # print(val_files)
 with open(split_carla_dir+"/val_files.txt", mode="w") as f:

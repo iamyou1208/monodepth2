@@ -49,19 +49,25 @@ class CARLADataset(KITTIDepthDataset):
         return color
 
     def get_image_path(self, folder, frame_index, side):
-        f_str = "{:010d}{}".format(frame_index, self.img_ext)
+        # f_str = "{:010d}{}".format(frame_index, self.img_ext)
+        typ = "leftImg8bit"
+        f_str = "{}_{:010d}_{}{}".format(folder, frame_index, typ, self.img_ext)
         image_path = os.path.join(
             self.data_path,
-            "leftImg8bit",
+            typ,
+            "train",
             folder,
             f_str)
         return image_path
 
     def get_depth(self, folder, frame_index, side, do_flip):
-        f_str = "{:010d}.png".format(frame_index)
+        # f_str = "{:010d}.png".format(frame_index)
+        typ = "depth"
+        f_str = "{}_{:010d}_{}{}".format(folder, frame_index, typ, self.img_ext)
         depth_path = os.path.join(
             self.data_path,
-            "depth",
+            typ,
+            "train",
             folder,
             f_str)
         depth_gt = pil.open(depth_path)
