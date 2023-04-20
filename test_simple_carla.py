@@ -31,29 +31,7 @@ def parse_args():
     parser.add_argument('--image_path', type=str,
                         help='path to a test image or folder of images', required=True)
     parser.add_argument('--model_name', type=str,
-                        help='name of a pretrained model to use',
-                        choices=[
-                            "mono_model",
-                            "mono_640x192",
-                            "stereo_640x192",
-                            "mono+stereo_640x192",
-                            "mono_no_pt_640x192",
-                            "stereo_no_pt_640x192",
-                            "mono+stereo_no_pt_640x192",
-                            "mono_1024x320",
-                            "stereo_1024x320",
-                            "mono+stereo_1024x320",
-                            "carla_full_v1t2",
-                            "carla_full_v2t3",
-                            "carla_full_v3t4",
-                            "carla_full_v4t5",
-                            "carla_full_v5t1",
-                            "carla_full_npc_v1t2",
-                            "carla_full_npc_v2t3",
-                            "carla_full_npc_v3t4",
-                            "carla_full_npc_v4t5",
-                            "carla_full_npc_v5t1",  # add any models in weight/depth directory
-                            ])
+                        help='name of a pretrained model to use', required=True)
     parser.add_argument('--ext', type=str,
                         help='image extension to search for in folder', default="jpg")
     parser.add_argument("--no_cuda",
@@ -85,14 +63,34 @@ def test_simple(args):
         print("Warning: The --pred_metric_depth flag only makes sense for stereo-trained KITTI "
               "models. For mono-trained models, output depths will not in metric space.")
 
-    # download_model_if_doesnt_exist(args.model_name)
-    # model_path = os.path.join("models", args.model_name)
-    home_dir = os.path.expanduser("~")
-    weight_path = os.path.join(home_dir, "weight", "depth")
-    model_path = os.path.join(weight_path, args.model_name, "models", f"weights_{args.epoch}")
+    pretrained = [
+            "mono_640x192",
+            "stereo_640x192",
+            "mono+stereo_640x192",
+            "mono_no_pt_640x192",
+            "stereo_no_pt_640x192",
+            "mono+stereo_no_pt_640x192",
+            "mono_1024x320",
+            "stereo_1024x320",
+            "mono+stereo_1024x320",
+    ]
+    if args.model_name in pretrained:
+        download_model_if_doesnt_exist(args.model_name)
+        model_path = os.path.join("models", args.model_name)
+    else:
+        home_dir = os.path.expanduser("~")
+        weight_path = os.path.join(home_dir, "weight", "depth")
+        model_path = os.path.join(weight_path, args.model_name, "models", f"weights_{args.epoch}")
     print("-> Loading model from ", model_path)
     encoder_path = os.path.join(model_path, "encoder.pth")
     depth_decoder_path = os.path.join(model_path, "depth.pth")
+    if os.path.isdir(encoder_path):
+        print(f"   {encoder_path} not found!")
+        quit()
+    if os.path.isdir(depth_decoder_path):
+        print(f"   {depth_decoder_path} not found!")
+        quit()
+
 
     # LOADING PRETRAINED MODEL
     print("   Loading pretrained encoder")
